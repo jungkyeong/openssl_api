@@ -2,6 +2,7 @@
 #include "Util.h"
 #include "Define.h"
 #include "ConfigRead.h"
+#include "CipherAPI.h"
 #include "../lib/json/json.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -11,97 +12,62 @@
 
 Util util;
 ConfigRead configread;
+CipherAPI cipherapi;
 
 int main() {
 
-    // current time get
-    // std::string asd = util.time_get();
-
-    // std::string pw = util.get_input("user password: ");
-    // std::cout << pw << std::endl;
-/*
-    // Json lib
-    void* LibHandle = NULL;
-    LibHandle = dlopen(JSON_LIB, RTLD_NOW);
-    if(!LibHandle){
-        DBG_PRINT("Failed to load JSON library: %s\n", dlerror());
-        return FAIL;
+    // 1. make hash value
+    unsigned char hashvalue[32];
+    int hash_len = cipherapi.hash_make_value((char*)"dsa", hashvalue);
+    for(int i = 0; i < hash_len; i++){
+        printf("%02x ", hashvalue[i]);
     }
 
-    Json::Value resroot;
-    resroot["CKA_CLASS"] = "CKO_SECRET_KEY";
-    resroot["CKA_KEY_TYPE"] = "CKK_AES";
-    resroot["CKA_LABEL"] = "key_label";
-    resroot["CKA_TOKEN"] = "false";
-    Json::StreamWriterBuilder abuilder;
-    std::string create_json_file = Json::writeString(abuilder, resroot);
-
-    std::cout << create_json_file << std::endl;
-
-    dlclose(LibHandle);
-*/
-/*
-    // config read
-    void* file_data = nullptr;
-    int file_len = util.read_from_file(CONFIG_ROOT, &file_data);
-    if(file_len <=0){
-        DBG_PRINT("File read fail \n");
+    unsigned char driv_key[32]={0,};
+    int status = cipherapi.pbkdf_key_generate("password", driv_key, 32);
+    if(status ==0){
+    printf("Generated Key: ");
+    for (int i = 0; i < 32; i++) {
+        printf("%02x", driv_key[i]);
     }
-    char* config_str = static_cast<char*>(file_data);
-    printf("파일 내용:\n%s\n", config_str);
-
-
-    free(file_data);
-*/
-/*
-    std::ifstream file(CONFIG_ROOT);
-    std::string line;
-    std::vector<ConfigEntry> configList;
-
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string key, equal_sign, value;
-
-        if (iss >> key >> equal_sign >> value && equal_sign == "=") {
-            // 큰따옴표 제거
-            if (!value.empty() && value.front() == '"')
-                value = value.substr(1, value.length() - 2);
-            
-            configList.push_back({key, value});
-        }
+    printf("\n");
     }
 
-    // 확인용 출력
-    for (const auto& entry : configList) {
-        std::cout << entry.key << " -> " << entry.value << std::endl;
+    unsigned char encrypted[1024];
+    unsigned char decrypted[1024];
+    int enc_len = cipherapi.enc_sym_data("A1Faf019", driv_key, (unsigned char*)"1234567890123456", encrypted, 1024);
+    if(enc_len ==-1){
+      std::cout << "enc fail" << std::endl;
     }
-    for (auto& entry : configList) { // clear
-        std::fill(entry.value.begin(), entry.value.end(), '\0');
-        if (entry.key == "password") {
-        }
-    }
-
-    // 확인용 출력
-    for (const auto& entry : configList) {
-        std::cout << entry.key << " -> " << entry.value << std::endl;
-    }
-*/
-
-    // config value out
-    // std::string pw = configread.config_get_key(SEC_CONFIG_ROOT, "password");
-    // std::cout << pw << std::endl;
-
-    std::vector<ConfigList> configs = configread.config_get_all(CONFIG_ROOT);
-
-    for (const auto& entry : configs) { // print
-        std::cout << entry.key << " = " << entry.value << std::endl;
-        if(entry.key == "relam"){
-            printf("realm name: %s \n", entry.value.c_str());
-        }
+    else{
+      std::cout << "enc success" << std::endl;
+      std::cout << "enc len: " << enc_len << std::endl;
+      for(int i=0; i<enc_len; i++){
+        printf("%02x", encrypted[i]);
+      }
+      printf("\n");
     }
 
-    for (auto& entry : configs) { // clear
-        std::fill(entry.value.begin(), entry.value.end(), '\0');
+    int dec_len = cipherapi.dec_sym_data(encrypted, enc_len, driv_key, (unsigned char*)"1234567890123456", decrypted, 1024);
+    if(dec_len==-1){
+      std::cout << "dec fail" << std::endl;
     }
-    return 0;
+    else{
+      std::cout << "dec success" << std::endl;
+      std::cout << "dec len: " << dec_len << std::endl;
+      for(int i=0; i<dec_len; i++){
+        printf("%02x", decrypted[i]);
+      }
+      printf("\n");
+      // make string
+      std::string asd = util.hex_to_str(decrypted, dec_len);
+      std::cout << asd << std::endl;
+    }
+
+    memset(driv_key, 0, 32); // key clear
+
+
+
+
+
 }
