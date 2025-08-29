@@ -67,7 +67,29 @@ int main() {
     memset(driv_key, 0, 32); // key clear
 
 
+    // define key
+    unsigned char private_key[4096] = {0};
+    int private_len =0;
+    unsigned char public_key[4096] = {0};
+    int public_len =0;
 
+    // make rsa key
+    status = cipherapi.generate_rsa_key_pair_der(4096, RSA_E_NUM, private_key, private_len, 4096, public_key, public_len, 4096);
+    if(status != SUCCESS){
+      std::cout << "RSA Generate FAIL" << std::endl;
+    } else {
+      std::cout << "RSA Generate SUCCESS" << std::endl;
+      printf("Private Key Len %d, PRIVATE KEY: \n", private_len);
+      for(int i=0; i <private_len; i++){
+        printf(" %02x", private_key[i]);
+      }
+      printf(" \n");
 
+      printf("Public Key Len %d, Public KEY: \n", public_len);
+      for(int i=0; i <public_len; i++){
+        printf(" %02x", public_key[i]);
+      }
+      printf(" \n");
+    }
 
 }

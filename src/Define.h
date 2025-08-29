@@ -24,6 +24,9 @@
 #define MSG_NORMAL_FAIL "Fail"
 #define MSG_NORMAL_SUCCESS "Success"
 
+// ======== Algorithm Setting ========= //
+#define RSA_E_NUM 65537
+
 
 
 
