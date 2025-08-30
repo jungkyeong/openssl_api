@@ -16,6 +16,9 @@
 #include "Define.h"
 #include "CipherAPI.h"
 
+// openssl 3.0 prev 1.1.1 use warning disable
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 /**
 * @brief make hash value SHA-256
 * @param data plain data
@@ -274,4 +277,145 @@ int CipherAPI::generate_rsa_key_pair_der(int key_size, unsigned int e_number, un
   DBG_PRINT("Convert RSA Key Success \n");
   RSA_free(rsa);
   return SUCCESS;
+}
+
+/**
+* @brief RSA Encryption Data from Public key(RSA_PKCS1_PADDING)
+* @param pub_key public key data
+* @param pub_key_len public key length
+* @param plain_data plain data
+* @param plain_data_len plain text length
+* @param enc_data encryption data
+* @param max_enc_buf_len public key max buffer
+* @return Success: output encryption data length, fail -1
+*/
+int CipherAPI::rsa_encrypt(const unsigned char* pub_key, int pub_key_len, const unsigned char* plain_data, int plain_data_len,
+                            unsigned char* enc_data, int max_enc_buf_len){
+
+    // Get Public Key
+    const unsigned char* p = pub_key; // move inner function
+    RSA* rsa = nullptr;
+    rsa = d2i_RSA_PUBKEY(nullptr, &p, pub_key_len);
+    if (!rsa){
+      DBG_PRINT("public key context get fail \n");
+      return FAIL;
+    }
+
+    int enc_data_len = RSA_public_encrypt(plain_data_len, plain_data, enc_data, rsa, RSA_PKCS1_PADDING);
+    if (enc_data_len <= 0 || enc_data_len > max_enc_buf_len) {
+      DBG_PRINT("RSA Encryption fail %d \n", enc_data_len);
+      RSA_free(rsa);
+      return FAIL;
+    }
+
+    DBG_PRINT("RSA Encrypted \n");
+    RSA_free(rsa);
+    return enc_data_len;
+}
+
+/**
+* @brief RSA Decryption Data from Private key(RSA_PKCS1_PADDING)
+* @param priv_key public key data
+* @param priv_key_len public key length
+* @param enc_data plain data
+* @param enc_data_len plain text length
+* @param plain_data encryption data
+* @param max_plain_buf_len public key max buffer
+* @return Success: output encryption data length, fail -1
+*/
+int CipherAPI::rsa_decrypt(const unsigned char* priv_key, int priv_key_len, const unsigned char* enc_data, int enc_data_len,
+    unsigned char* plain_data, int max_plain_buf_len){
+
+    // Get Private Key
+    const unsigned char* p = priv_key; // move inner function
+    RSA* rsa = nullptr;
+    rsa = d2i_RSAPrivateKey(nullptr, &p, priv_key_len);
+    if (!rsa){
+      DBG_PRINT("private key context get fail \n");
+      return FAIL;
+    }
+
+    // RSA Decryption
+    int plain_data_len = RSA_private_decrypt(enc_data_len, enc_data, plain_data, rsa, RSA_PKCS1_PADDING);
+    if (plain_data_len <= 0 || plain_data_len > max_plain_buf_len) {
+      DBG_PRINT("RSA Decryption fail %d \n", plain_data_len);
+      RSA_free(rsa);
+      return FAIL;
+    }
+
+    DBG_PRINT("RSA Decrypted \n");
+    RSA_free(rsa);
+    return plain_data_len;
+}
+
+/**
+ * @brief RSA Sign Data from Private key (SHA-256)
+ * @param priv_key   private key (DER/PEM)
+ * @param priv_key_len private key length
+ * @param hash       input data (hashed data)
+ * @param hash_len   input data length
+ * @param signature_data    output signature buffer
+ * @param max_signature_len maximum signature buffer length
+ * @return Success: signature length, Fail: -1
+ */
+int CipherAPI::rsa_sign(const unsigned char* priv_key, int priv_key_len, const unsigned char* hash, int hash_len,
+                          unsigned char* signature_data, int max_sig_len){
+
+    // Get Private Key
+    const unsigned char* p = priv_key; // move inner function
+    RSA* rsa = nullptr;
+    rsa = d2i_RSAPrivateKey(nullptr, &p, priv_key_len);
+    if (!rsa){
+      DBG_PRINT("private key context get fail \n");
+      return FAIL;
+    }
+
+    if (max_sig_len < RSA_size(rsa)) {
+        DBG_PRINT("buffer too small for signature\n");
+        RSA_free(rsa);
+        return FAIL;
+    }
+
+    unsigned int signature_len = 0;
+    if (RSA_sign(NID_sha256, hash, hash_len, signature_data, &signature_len, rsa) != 1) {
+        DBG_PRINT("RSA_sign failed\n");
+        RSA_free(rsa);
+        return FAIL;
+    }
+
+    RSA_free(rsa);
+    return (int)signature_len;
+}
+
+
+/**
+ * @brief RSA Verify Signature (SHA-256)
+ * @param pub_key   public key (DER/PEM)
+ * @param pub_key_len public key length
+ * @param hash      input data (hashed data)
+ * @param hash_len  input data length
+ * @param signature       input signature
+ * @param signature_len   signature length
+ * @return Success: 1, Fail: 0
+ */
+int CipherAPI::rsa_verify(const unsigned char* pub_key, int pub_key_len, const unsigned char* hash, int hash_len,
+                          const unsigned char* signature, int signature_len){
+    // Get Public Key
+    const unsigned char* p = pub_key; // move inner function
+    RSA* rsa = nullptr;
+    rsa = d2i_RSA_PUBKEY(nullptr, &p, pub_key_len);
+    if (!rsa){
+      DBG_PRINT("public key context get fail \n");
+      return FAIL;
+    }
+
+    int ret = RSA_verify(NID_sha256, hash, hash_len, signature, signature_len, rsa);
+    RSA_free(rsa);
+    if (ret == 1) {
+      DBG_PRINT("RSA Verify success\n");
+      return SUCCESS;
+    } else {
+      DBG_PRINT("RSA Verify fail\n");
+      return FAIL;
+    }
 }

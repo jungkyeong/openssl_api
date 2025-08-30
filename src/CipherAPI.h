@@ -107,25 +107,57 @@
     int generate_rsa_key_pair_der(int key_size, unsigned int e_number, unsigned char* out_priv, int& out_priv_len, int max_priv_buf,
                                     unsigned char* out_pub, int& out_pub_len, int max_pub_buf);
 
-    bool rsa_encrypt(
-    const unsigned char* pub_key, int pub_key_len,
-    const unsigned char* in, int in_len,
-    unsigned char* out, int& out_len, int max_out_len);
+    /**
+    * @brief RSA Encryption Data from Public key(RSA_PKCS1_PADDING)
+    * @param pub_key public key data
+    * @param pub_key_len public key length
+    * @param plain_data plain data
+    * @param plain_data_len plain text length
+    * @param enc_data encryption data
+    * @param max_enc_buf_len public key max buffer
+    * @return Success: output encryption data length, fail -1
+    */
+    int rsa_encrypt(const unsigned char* pub_key, int pub_key_len, const unsigned char* plain_data, int plain_data_len,
+                            unsigned char* enc_data, int max_enc_buf_len);
 
-    bool rsa_decrypt(
-    const unsigned char* priv_key, int priv_key_len,
-    const unsigned char* in, int in_len,
-    unsigned char* out, int& out_len, int max_out_len);
+    /**
+    * @brief RSA Decryption Data from Private key(RSA_PKCS1_PADDING)
+    * @param priv_key public key data
+    * @param priv_key_len public key length
+    * @param enc_data plain data
+    * @param enc_data_len plain text length
+    * @param plain_data encryption data
+    * @param max_plain_buf_len public key max buffer
+    * @return Success: output encryption data length, fail -1
+    */
+    int rsa_decrypt(const unsigned char* priv_key, int priv_key_len, const unsigned char* enc_data, int enc_data_len,
+    unsigned char* plain_data, int max_plain_buf_len);
 
-    bool rsa_sign(
-    const unsigned char* priv_key, int priv_key_len,
-    const unsigned char* hash, int hash_len,
-    unsigned char* sig_out, int& sig_len, int max_sig_len);
+    /**
+     * @brief RSA Sign Data from Private key (SHA-256)
+     * @param priv_key   private key (DER/PEM)
+     * @param priv_key_len private key length
+     * @param hash       input data (hashed data)
+     * @param hash_len   input data length
+     * @param signature_data    output signature buffer
+     * @param max_signature_len maximum signature buffer length
+     * @return Success: signature length, Fail: -1
+    */
+    int rsa_sign(const unsigned char* priv_key, int priv_key_len, const unsigned char* hash, int hash_len,
+                          unsigned char* signature_data, int max_sig_len);
 
-    bool rsa_verify(
-    const unsigned char* pub_key, int pub_key_len,
-    const unsigned char* hash, int hash_len,
-    const unsigned char* sig, int sig_len);
+    /**
+     * @brief RSA Verify Signature (SHA-256)
+     * @param pub_key   public key (DER/PEM)
+     * @param pub_key_len public key length
+     * @param hash      input data (hashed data)
+     * @param hash_len  input data length
+     * @param signature       input signature
+     * @param signature_len   signature length
+     * @return Success: 1, Fail: 0
+     */
+    int rsa_verify(const unsigned char* pub_key, int pub_key_len, const unsigned char* hash, int hash_len,
+                          const unsigned char* signature, int signature_len);
 
   
   };

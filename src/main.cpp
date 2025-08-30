@@ -92,4 +92,43 @@ int main() {
       printf(" \n");
     }
 
+    // RSA Encrypted
+    const char* msg = "Hello OpenSSL!";
+    unsigned char pair_encrypted[4096] = {0};
+    int rsa_enc_len = cipherapi.rsa_encrypt(public_key, public_len, (unsigned char*)msg, strlen(msg), pair_encrypted, 4096);
+    printf("RSA ENC DATA LENGTH %d \n", rsa_enc_len);
+    if(rsa_enc_len > 0){
+      for(int i=0; i < rsa_enc_len; i++){
+        printf(" %02x", pair_encrypted[i]);
+      }
+      printf(" \n");
+    }
+
+    // RSA Decrypted
+    unsigned char pair_decrypted[4096] = {0};
+    int rsa_dec_len = cipherapi.rsa_decrypt(private_key, private_len, pair_encrypted, rsa_enc_len, pair_decrypted, 4096);
+    printf("RSA DEC DATA LENGTH %d \n", rsa_enc_len);
+    if(rsa_dec_len > 0){
+      for(int i=0; i < rsa_dec_len; i++){
+        printf(" %02x", pair_decrypted[i]);
+      }
+      printf(" \n");
+    }
+
+    // RSA Sign
+    unsigned char pair_signature[4096] = {0};
+    int signature_len = cipherapi.rsa_sign(private_key, private_len, hashvalue, hash_len, pair_signature, 4096);
+    printf("RSA Signature LENGTH %d \n", signature_len);
+    if(signature_len > 0){
+      for(int i=0; i < signature_len; i++){
+        printf(" %02x", pair_signature[i]);
+      }
+      printf(" \n");
+    }
+
+    // RSA verify
+    //cipherapi.hash_make_value((char*)"asd", hashvalue);
+    status = cipherapi.rsa_verify(public_key, public_len, hashvalue, hash_len, pair_signature, signature_len);
+
+    return 0;
 }
