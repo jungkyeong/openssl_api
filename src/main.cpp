@@ -18,13 +18,15 @@ int main() {
 
     // 1. make hash value
     unsigned char hashvalue[32];
-    int hash_len = cipherapi.hash_make_value((char*)"dsa", hashvalue);
+    int hash_len = cipherapi.hash_make_value((char*)"dsa", hashvalue, 32, ALG_SHA256);
     for(int i = 0; i < hash_len; i++){
         printf("%02x ", hashvalue[i]);
     }
 
-    unsigned char driv_key[32]={0,};
-    int status = cipherapi.pbkdf_key_generate("password", driv_key, 32);
+    unsigned char driv_key[32]={0};
+    unsigned char salt[16]={0};
+    cipherapi.generate_rand_data(salt, SALT_LEN);
+    int status = cipherapi.pbkdf_key_generate("password", salt, SALT_LEN, driv_key, 32);
     if(status ==0){
     printf("Generated Key: ");
     for (int i = 0; i < 32; i++) {
@@ -35,7 +37,7 @@ int main() {
 
     unsigned char encrypted[1024];
     unsigned char decrypted[1024];
-    int enc_len = cipherapi.enc_sym_data("A1Faf019", driv_key, (unsigned char*)"1234567890123456", encrypted, 1024);
+    int enc_len = cipherapi.enc_sym_data("A1Faf019", driv_key, driv_key, ALG_ARIA256, encrypted, 1024);
     if(enc_len ==-1){
       std::cout << "enc fail" << std::endl;
     }
@@ -48,7 +50,7 @@ int main() {
       printf("\n");
     }
 
-    int dec_len = cipherapi.dec_sym_data(encrypted, enc_len, driv_key, (unsigned char*)"1234567890123456", decrypted, 1024);
+    int dec_len = cipherapi.dec_sym_data(encrypted, enc_len, driv_key, driv_key, ALG_ARIA256, decrypted, 1024);
     if(dec_len==-1){
       std::cout << "dec fail" << std::endl;
     }

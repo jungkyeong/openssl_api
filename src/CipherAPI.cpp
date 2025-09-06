@@ -22,10 +22,12 @@
 /**
 * @brief make hash value SHA-256
 * @param data plain data
-* @param hashed output hash data(32byte)
-* @return Success: hash length(32) fail: 0
+* @param hashed output hash data (~64byte)
+* @param hash_buf_max_size hash buffer max size
+* @param type algorithm type ALG_SHA256: 0, ALG_SHA512: 1
+* @return Success: hash length fail: -1
 */
-int CipherAPI::hash_make_value(char* data, unsigned char* hashed){
+int CipherAPI::hash_make_value(char* data, unsigned char* hashed, int hash_buf_max_size, int type){
 
   EVP_MD_CTX* ctx = EVP_MD_CTX_new();
 
@@ -33,7 +35,25 @@ int CipherAPI::hash_make_value(char* data, unsigned char* hashed){
       return FAIL;
   }
 
-  EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+  // algorithm setting check
+  const EVP_MD* md = nullptr;
+  switch (type) {
+      case ALG_SHA256: md = EVP_sha256(); break;
+      case ALG_SHA512: md = EVP_sha512(); break;
+      default:
+          DBG_PRINT("HASH Algorithm Invalid\n");
+          return FAIL;
+  }
+
+  // hash output buffer size check
+  int required_size = EVP_MD_size(md);
+  if (hash_buf_max_size < required_size) {
+    EVP_MD_CTX_free(ctx);
+    DBG_PRINT("hash make buffer enough \n");
+    return FAIL;
+  }
+
+  EVP_DigestInit_ex(ctx, md, NULL);
   EVP_DigestUpdate(ctx, data, strlen(data));
 
   unsigned int hashed_len;
@@ -52,7 +72,7 @@ int CipherAPI::hash_make_value(char* data, unsigned char* hashed){
 * @param max_buf_size output buffer max size
 * @return Success: enc_buf len, fail -1
 */
-int CipherAPI::enc_sym_data(const char* data, unsigned char* key, unsigned char* iv, unsigned char* enc_buf, int max_buf_size){
+int CipherAPI::enc_sym_data(const char* data, unsigned char* key, unsigned char* iv, int type, unsigned char* enc_buf, int max_buf_size){
 
   // Encryption create context
   EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -61,8 +81,22 @@ int CipherAPI::enc_sym_data(const char* data, unsigned char* key, unsigned char*
     return FAIL;
   }
 
+  // algorithm setting check
+  const EVP_CIPHER* cipher = nullptr;
+  switch (type) {
+      case ALG_ARIA128: cipher = EVP_aria_128_cbc(); break;
+      case ALG_ARIA192: cipher = EVP_aria_192_cbc(); break;
+      case ALG_ARIA256: cipher = EVP_aria_256_cbc(); break;
+      case ALG_AES128: cipher = EVP_aes_128_cbc(); break;
+      case ALG_AES192: cipher = EVP_aes_192_cbc(); break;
+      case ALG_AES256: cipher = EVP_aes_256_cbc(); break;
+      default:
+          DBG_PRINT("HASH Algorithm Invalid\n");
+          return FAIL;
+  }
+
   // Encryption init
-  if(!EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)){
+  if(!EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv)){
     EVP_CIPHER_CTX_free(ctx);
     DBG_PRINT("encryption init fail \n");
     return FAIL;
@@ -108,7 +142,7 @@ int CipherAPI::enc_sym_data(const char* data, unsigned char* key, unsigned char*
 * @param max_buf_size output buffer max size
 * @return Success: dec_buf len, fail -1
 */
-int CipherAPI::dec_sym_data(unsigned char* enc_buf, int enc_buf_len, unsigned char* key, unsigned char* iv, unsigned char* dec_buf, int max_buf_size){
+int CipherAPI::dec_sym_data(unsigned char* enc_buf, int enc_buf_len, unsigned char* key, unsigned char* iv, int type, unsigned char* dec_buf, int max_buf_size){
 
   // Decryption create context
   EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -117,8 +151,22 @@ int CipherAPI::dec_sym_data(unsigned char* enc_buf, int enc_buf_len, unsigned ch
     return FAIL;
   }
 
+  // algorithm setting check
+  const EVP_CIPHER* cipher = nullptr;
+  switch (type) {
+      case ALG_ARIA128: cipher = EVP_aria_128_cbc(); break;
+      case ALG_ARIA192: cipher = EVP_aria_192_cbc(); break;
+      case ALG_ARIA256: cipher = EVP_aria_256_cbc(); break;
+      case ALG_AES128: cipher = EVP_aes_128_cbc(); break;
+      case ALG_AES192: cipher = EVP_aes_192_cbc(); break;
+      case ALG_AES256: cipher = EVP_aes_256_cbc(); break;
+      default:
+          DBG_PRINT("HASH Algorithm Invalid\n");
+          return FAIL;
+  }
+
   // Decryption init
-  if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
+  if (!EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv)) {
     EVP_CIPHER_CTX_free(ctx);
     DBG_PRINT("decryption init fail \n");
     return FAIL;
@@ -157,21 +205,16 @@ int CipherAPI::dec_sym_data(unsigned char* enc_buf, int enc_buf_len, unsigned ch
 /**
 * @brief Generate PBKDF2 Key
 * @param password drive key password
+* @param salt salt data
+* @param salt_len salt length
 * @param key output key buffer
 * @param key_len key length
 * @return Success: 0 len, fail -1
 */ 
-int CipherAPI::pbkdf_key_generate(const char* password, unsigned char* key, int key_len){
-
-  // create random salt value
-  unsigned char salt[SALT_LEN];
-  if (RAND_bytes(salt, SALT_LEN) != 1) {
-    DBG_PRINT("salt generate fail \n");
-    return FAIL;
-  }
+int CipherAPI::pbkdf_key_generate(const char* password, unsigned char* salt, int salt_len, unsigned char* key, int key_len){
 
   // generate salt
-  if (PKCS5_PBKDF2_HMAC(password, strlen(password), salt, SALT_LEN, PBKDF2_ITER, EVP_sha256(), key_len, key) != 1) {
+  if (PKCS5_PBKDF2_HMAC(password, strlen(password), salt, salt_len, PBKDF2_ITER, EVP_sha256(), key_len, key) != 1) {
     DBG_PRINT("pbkdf2 key generate fail \n");
     return FAIL;
   }
@@ -418,4 +461,20 @@ int CipherAPI::rsa_verify(const unsigned char* pub_key, int pub_key_len, const u
       DBG_PRINT("RSA Verify fail\n");
       return FAIL;
     }
+}
+
+/**
+* @brief generate random key
+* @param data output data buffer
+* @param len output hash data
+* @return Success: 0 Fail -1
+*/
+int CipherAPI::generate_rand_data(unsigned char* data, int len){
+
+    if (RAND_bytes(data, len) != 1) {
+        DBG_PRINT("Random data generated fail \n");
+        return FAIL;
+    }
+    DBG_PRINT("Random Data Generate \n");
+    return SUCCESS;
 }
